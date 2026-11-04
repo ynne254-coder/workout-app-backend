@@ -20,14 +20,14 @@ pipenv install --dev
 
 If working inside the Pipenv environment, run commands with `pipenv run`. For a regular virtual environment instead, install the same dependencies from the Pipfile with `pip install Flask==2.2.2 Flask-Migrate==3.1.0 Flask-SQLAlchemy==3.0.3 Werkzeug==2.2.2 marshmallow==3.20.1 pytest`.
 
-Initialize and apply database migrations:
+Apply the checked-in database migration:
 
 ```bash
 export FLASK_APP=app.py
-flask db init       # only the first time; this creates migrations/
-flask db migrate -m "Create workout and exercise tables"
 flask db upgrade
 ```
+
+To create a new migration after changing models, run `flask db migrate -m "Describe your change"` and then `flask db upgrade`. The migrations directory and initial schema migration are already included in this repository; do not run `flask db init` again.
 
 Seed example records (the script creates tables if needed and can be rerun; rerunning resets seeded workout/exercise records):
 
