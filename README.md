@@ -1,67 +1,58 @@
 # Workout Application Backend
 
-A REST API for personal trainers to manage workout sessions and reusable exercises. A workout can contain many exercises; the `workout_exercises` association model stores per-workout sets, reps, and/or duration.
+A Flask REST API for personal trainers to manage workout sessions and reusable exercises. Each workout can contain multiple exercises; the `workout_exercises` association model stores sets, reps, and/or duration for each exercise in each workout.
 
-## Stack
+## Requirements and installation
 
-- Python 3.10+
-- Flask 2.2.2, Flask-SQLAlchemy 3.0.3, Flask-Migrate 3.1.0
-- Marshmallow 3.20.1
-- SQLite by default (set `SQLALCHEMY_DATABASE_URI` in your environment/configuration to use another SQLAlchemy database)
-
-## Setup
+The assignment specifies Python 3.8.13 or newer. Install Python and Pipenv, then install the dependencies from the checked-in `Pipfile`:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install pipenv
+python3 --version
+python3 -m pip install --user pipenv
 pipenv install --dev
 ```
 
-If working inside the Pipenv environment, run commands with `pipenv run`. For a regular virtual environment instead, install the same dependencies from the Pipfile with `pip install Flask==2.2.2 Flask-Migrate==3.1.0 Flask-SQLAlchemy==3.0.3 Werkzeug==2.2.2 marshmallow==3.20.1 pytest`.
+If your system uses `pip` rather than `python3 -m pip`, use `pip install --user pipenv`. Run commands inside the Pipenv environment with `pipenv run` (or start a shell with `pipenv shell`).
 
-Apply the checked-in database migration:
+## Database setup and seeding
 
-```bash
-export FLASK_APP=app.py
-flask db upgrade
-```
-
-To create a new migration after changing models, run `flask db migrate -m "Describe your change"` and then `flask db upgrade`. The migrations directory and initial schema migration are already included in this repository; do not run `flask db init` again.
-
-Seed example records (the script creates tables if needed and can be rerun; rerunning resets seeded workout/exercise records):
+The default database is SQLite at `instance/workouts.db`. Apply the included initial migration, then create sample data:
 
 ```bash
-python seed.py
+pipenv run flask --app app.py db upgrade
+pipenv run python seed.py
 ```
 
-Run the development server:
+The seed script creates two workouts, three reusable exercises, and four assignments. Re-running it resets the existing sample workout and exercise records before reseeding. The checked-in `migrations/` directory already contains the initial schema; do not run `flask db init` on a fresh clone.
+
+## Run and test
 
 ```bash
-flask run
+pipenv run flask --app app.py run
+pipenv run pytest
 ```
 
-The default database is SQLite at `instance/workouts.db`. The health check is `GET /health`.
+The health check is `GET /health`. The tests use an in-memory SQLite database and do not depend on seeded local data.
 
 ## API endpoints
 
-All request bodies are JSON. Validation failures return `400`; missing resources return `404`; uniqueness/relationship conflicts return `409`.
+All request bodies must be JSON objects. Invalid payloads return `400`, missing resources return `404`, and duplicate/relationship conflicts return `409`.
 
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/` | API status and resource overview |
 | `GET` | `/health` | Health check |
-| `GET` | `/workouts` | List workouts with their assigned exercises |
+| `GET` | `/workouts` | List workouts with assigned exercises |
 | `POST` | `/workouts` | Create a workout (`name`, optional ISO `date`, optional `notes`) |
-| `GET` | `/workouts/<id>` | Get one workout and its exercise assignments |
+| `GET` | `/workouts/<id>` | Get a workout and its exercise assignments |
 | `DELETE` | `/workouts/<id>` | Delete a workout and its assignments |
 | `GET` | `/exercises` | List reusable exercises |
 | `POST` | `/exercises` | Create an exercise (`name`, optional `category`, optional `description`) |
 | `GET` | `/exercises/<id>` | Get one exercise |
 | `DELETE` | `/exercises/<id>` | Delete an unassigned exercise; assigned exercises return `409` |
-| `POST` | `/workouts/<id>/exercises` | Assign an exercise using `exercise_id` and optional `sets`, plus `reps` and/or `duration_seconds` |
+| `POST` | `/workouts/<id>/exercises` | Add an exercise using `exercise_id` and optional `sets`, plus `reps` and/or `duration_seconds` |
 
-Example requests:
+Example requests (with the server running on port 5000):
 
 ```bash
 curl -X POST http://127.0.0.1:5000/workouts \
@@ -77,15 +68,10 @@ curl -X POST http://127.0.0.1:5000/workouts/1/exercises \
   -d '{"exercise_id":1,"sets":3,"reps":8}'
 ```
 
-## Data integrity and validation
+## Models, relationships, and validation
 
-- Database checks enforce non-blank bounded workout/exercise names and categories, positive sets/reps/duration, and at least one of reps or duration for an assignment.
-- Database constraints enforce unique exercise names and at most one assignment of a given exercise per workout; foreign keys protect relationships.
-- SQLAlchemy model validators reject invalid names, text lengths, and non-positive/non-integer training values.
-- Marshmallow schemas validate payload types, required values, text lengths, date parsing, positive IDs/counts, and assignment measurement requirements.
-
-## Tests
-
-```bash
-pipenv run pytest
-```
+- `Workout` and `Exercise` are joined many-to-many by `WorkoutExercise`, which stores per-workout sets, reps, and duration.
+- More than one database table constraint is present: bounded non-blank names/categories, positive workout metrics, and a required reps-or-duration measurement. Unique constraints prevent duplicate exercise names and duplicate assignments in one workout; foreign keys enforce valid relationships.
+- SQLAlchemy model validators reject blank or overlong names/text and non-positive or non-integer sets/reps/duration.
+- Marshmallow input schemas validate required values, types, text lengths, date format, positive IDs/counts, and assignment measurement rules.
+- Marshmallow output schemas serialize exercises and workouts, including nested exercise-assignment records in workout responses.

@@ -1,4 +1,4 @@
-"""Request validation and response serialization."""
+"""Marshmallow request validation and response serialization schemas."""
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 
 
@@ -43,3 +43,31 @@ class WorkoutExerciseInputSchema(Schema):
     def require_measurement(self, data, **kwargs):
         if data.get("reps") is None and data.get("duration_seconds") is None:
             raise ValidationError("Provide reps, duration_seconds, or both.")
+
+
+class ExerciseOutputSchema(Schema):
+    id = fields.Integer(dump_only=True)
+    name = fields.String(dump_only=True)
+    category = fields.String(allow_none=True, dump_only=True)
+    description = fields.String(allow_none=True, dump_only=True)
+
+
+class WorkoutExerciseOutputSchema(Schema):
+    id = fields.Integer(dump_only=True)
+    exercise = fields.Nested(ExerciseOutputSchema, dump_only=True)
+    sets = fields.Integer(allow_none=True, dump_only=True)
+    reps = fields.Integer(allow_none=True, dump_only=True)
+    duration_seconds = fields.Integer(allow_none=True, dump_only=True)
+
+
+class WorkoutOutputSchema(Schema):
+    id = fields.Integer(dump_only=True)
+    name = fields.String(dump_only=True)
+    date = fields.Date(dump_only=True)
+    notes = fields.String(allow_none=True, dump_only=True)
+    exercises = fields.Nested(
+        WorkoutExerciseOutputSchema,
+        many=True,
+        attribute="workout_exercises",
+        dump_only=True,
+    )

@@ -30,7 +30,17 @@ def test_create_and_reuse_exercise_across_workouts(client):
     assigned = client.post(f"/workouts/{first['id']}/exercises", json={"exercise_id": exercise.json["id"], "sets": 3, "duration_seconds": 30})
     assert assigned.status_code == 201
     assert client.post(f"/workouts/{second['id']}/exercises", json={"exercise_id": exercise.json["id"], "duration_seconds": 45}).status_code == 201
-    assert len(client.get(f"/workouts/{first['id']}").json["exercises"]) == 1
+    detail = client.get(f"/workouts/{first['id']}").json
+    assert len(detail["exercises"]) == 1
+    assert detail["exercises"][0]["exercise"] == {
+        "id": exercise.json["id"],
+        "name": "Plank",
+        "category": "Core",
+        "description": None,
+    }
+    listed_workout = next(item for item in client.get("/workouts").json if item["id"] == first["id"])
+    assert listed_workout["exercises"] == detail["exercises"]
+    assert client.get(f"/exercises/{exercise.json['id']}").json["name"] == "Plank"
 
 
 def test_assignment_validation_and_duplicate(client):

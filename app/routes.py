@@ -5,12 +5,24 @@ from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.models import Exercise, Workout, WorkoutExercise
-from app.schemas import ExerciseInputSchema, WorkoutExerciseInputSchema, WorkoutInputSchema
+from app.schemas import (
+    ExerciseInputSchema,
+    ExerciseOutputSchema,
+    WorkoutExerciseInputSchema,
+    WorkoutExerciseOutputSchema,
+    WorkoutInputSchema,
+    WorkoutOutputSchema,
+)
 
 api = Blueprint("api", __name__)
 workout_input = WorkoutInputSchema()
 exercise_input = ExerciseInputSchema()
 workout_exercise_input = WorkoutExerciseInputSchema()
+workout_output = WorkoutOutputSchema()
+workouts_output = WorkoutOutputSchema(many=True)
+exercise_output = ExerciseOutputSchema()
+exercises_output = ExerciseOutputSchema(many=True)
+workout_exercise_output = WorkoutExerciseOutputSchema()
 
 
 def parse_json(schema):
@@ -33,7 +45,7 @@ def health():
 @api.get("/workouts")
 def list_workouts():
     workouts = Workout.query.order_by(Workout.date.desc(), Workout.id.desc()).all()
-    return jsonify([item.to_dict() for item in workouts])
+    return jsonify(workouts_output.dump(workouts))
 
 
 @api.post("/workouts")
@@ -45,7 +57,7 @@ def create_workout():
     workout = Workout(**data)
     db.session.add(workout)
     db.session.commit()
-    return jsonify(workout.to_dict()), 201
+    return jsonify(workout_output.dump(workout)), 201
 
 
 @api.get("/workouts/<int:workout_id>")
@@ -53,7 +65,7 @@ def get_workout(workout_id):
     workout = db.session.get(Workout, workout_id)
     if workout is None:
         return jsonify({"error": "Workout not found."}), 404
-    return jsonify(workout.to_dict())
+    return jsonify(workout_output.dump(workout))
 
 
 @api.delete("/workouts/<int:workout_id>")
@@ -69,7 +81,7 @@ def delete_workout(workout_id):
 @api.get("/exercises")
 def list_exercises():
     exercises = Exercise.query.order_by(Exercise.name.asc()).all()
-    return jsonify([item.to_dict() for item in exercises])
+    return jsonify(exercises_output.dump(exercises))
 
 
 @api.post("/exercises")
@@ -85,7 +97,7 @@ def create_exercise():
     except IntegrityError:
         db.session.rollback()
         return jsonify({"error": "An exercise with that name already exists."}), 409
-    return jsonify(exercise.to_dict()), 201
+    return jsonify(exercise_output.dump(exercise)), 201
 
 
 @api.get("/exercises/<int:exercise_id>")
@@ -93,7 +105,7 @@ def get_exercise(exercise_id):
     exercise = db.session.get(Exercise, exercise_id)
     if exercise is None:
         return jsonify({"error": "Exercise not found."}), 404
-    return jsonify(exercise.to_dict())
+    return jsonify(exercise_output.dump(exercise))
 
 
 @api.delete("/exercises/<int:exercise_id>")
@@ -125,4 +137,4 @@ def add_exercise_to_workout(workout_id):
     link = WorkoutExercise(workout=workout, exercise=exercise, **{key: value for key, value in data.items() if key != "exercise_id"})
     db.session.add(link)
     db.session.commit()
-    return jsonify(link.to_dict()), 201
+    return jsonify(workout_exercise_output.dump(link)), 201
